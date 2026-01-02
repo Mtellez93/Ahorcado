@@ -13,15 +13,40 @@ let gameState = {
     letrasAdivinadas: [],
     vidasTotales: 6,
     errores: 0,
-    turno: "Wuachiturros", // Siempre inicia adivinando Wuachiturros
-    equipoQuePonePalabra: "Chapisa", // Siempre inicia poniendo Chapisa
+    turno: "Wuachiturros",
+    equipoQuePonePalabra: "Chapisa",
     capitanes: { Wuachiturros: null, Chapisa: null },
     estado: "SETUP",
     puntos: {
         Wuachiturros: { rondas: 0, adivinadas: 0 },
         Chapisa: { rondas: 0, adivinadas: 0 }
-    }
+    },
+    timer: 40
 };
+
+let timerInterval = null;
+
+function startTimer() {
+    stopTimer();
+    gameState.timer = 40;
+    timerInterval = setInterval(() => {
+        if (gameState.estado === "JUGANDO") {
+            gameState.timer--;
+            if (gameState.timer <= 0) {
+                gameState.errores++;
+                gameState.timer = 40;
+                validarFinal();
+            }
+            io.emit('updateState', gameState);
+        } else {
+            stopTimer();
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+}
 
 io.on('connection', (socket) => {
     socket.emit('updateState', gameState);
@@ -43,6 +68,7 @@ io.on('connection', (socket) => {
         gameState.errores = 0;
         gameState.estado = "JUGANDO";
         gameState.turno = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
+        startTimer();
         io.emit('updateState', gameState);
     });
 
@@ -52,12 +78,14 @@ io.on('connection', (socket) => {
         if (!gameState.letrasAdivinadas.includes(letra)) {
             gameState.letrasAdivinadas.push(letra);
             if (!gameState.palabra.includes(letra)) gameState.errores++;
+            gameState.timer = 40; // Reiniciar timer tras intento
             validarFinal();
             io.emit('updateState', gameState);
         }
     });
 
     socket.on('nextRound', () => {
+        stopTimer();
         gameState.puntos[gameState.turno].rondas += 1;
         gameState.equipoQuePonePalabra = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
         gameState.palabra = "";
@@ -68,6 +96,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('resetFullGame', () => {
+        stopTimer();
         gameState.puntos = {
             Wuachiturros: { rondas: 0, adivinadas: 0 },
             Chapisa: { rondas: 0, adivinadas: 0 }
@@ -76,8 +105,8 @@ io.on('connection', (socket) => {
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
         gameState.estado = "SETUP";
-        gameState.equipoQuePonePalabra = "Chapisa"; // Resetear al orden inicial
-        gameState.turno = "Wuachiturros"; // Resetear al orden inicial
+        gameState.equipoQuePonePalabra = "Chapisa";
+        gameState.turno = "Wuachiturros";
         io.emit('updateState', gameState);
     });
 
@@ -92,8 +121,10 @@ function validarFinal() {
     if (ganaste) {
         gameState.estado = "GANO_" + gameState.turno;
         gameState.puntos[gameState.turno].adivinadas += 1;
+        stopTimer();
     } else if (gameState.errores >= gameState.vidasTotales) {
         gameState.estado = "PERDIO_" + gameState.turno;
+        stopTimer();
     }
 }
 
