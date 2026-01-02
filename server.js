@@ -13,8 +13,8 @@ let gameState = {
     letrasAdivinadas: [],
     vidasTotales: 6,
     errores: 0,
-    turno: "Wuachiturros",
-    equipoQuePonePalabra: "Chapisa",
+    turno: "Wuachiturros", // Siempre inicia adivinando Wuachiturros
+    equipoQuePonePalabra: "Chapisa", // Siempre inicia poniendo Chapisa
     capitanes: { Wuachiturros: null, Chapisa: null },
     estado: "SETUP",
     puntos: {
@@ -58,14 +58,26 @@ io.on('connection', (socket) => {
     });
 
     socket.on('nextRound', () => {
-        // Al cerrar la ronda, contamos una ronda completada para el que adivinaba
         gameState.puntos[gameState.turno].rondas += 1;
-        
         gameState.equipoQuePonePalabra = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
         gameState.palabra = "";
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
         gameState.estado = "SETUP";
+        io.emit('updateState', gameState);
+    });
+
+    socket.on('resetFullGame', () => {
+        gameState.puntos = {
+            Wuachiturros: { rondas: 0, adivinadas: 0 },
+            Chapisa: { rondas: 0, adivinadas: 0 }
+        };
+        gameState.palabra = "";
+        gameState.letrasAdivinadas = [];
+        gameState.errores = 0;
+        gameState.estado = "SETUP";
+        gameState.equipoQuePonePalabra = "Chapisa"; // Resetear al orden inicial
+        gameState.turno = "Wuachiturros"; // Resetear al orden inicial
         io.emit('updateState', gameState);
     });
 
