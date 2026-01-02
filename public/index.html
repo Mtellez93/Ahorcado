@@ -47,9 +47,10 @@
 
         socket.on('updateState', (state) => {
             if (state.estado === "SETUP") {
-                document.getElementById('status').innerText = "CONFIGURANDO...";
+                document.getElementById('status').innerText = "ESPERANDO PALABRA...";
                 document.getElementById('palabraDisplay').innerText = "_ _ _ _ _";
-                document.getElementById('equipoNombre').innerText = "---";
+                document.getElementById('equipoNombre').innerText = "CAPITÁN " + state.equipoQuePonePalabra;
+                document.getElementById('equipoNombre').className = state.equipoQuePonePalabra;
                 for(let i=1; i<=6; i++) document.getElementById('p' + i).classList.remove('visible');
                 lastErr = 0; lastAc = 0;
                 return;
