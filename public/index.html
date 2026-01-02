@@ -10,17 +10,19 @@
         .game-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         .Wuachiturros { color: #00f2ff; text-shadow: 0 0 20px #00f2ff; }
         .Chapisa { color: #ff00ff; text-shadow: 0 0 20px #ff00ff; }
-        #hangman-svg { width: 280px; height: 280px; margin: 10px; }
+        #hangman-svg { width: 220px; height: 220px; }
         .draw-part { fill: none; stroke: white; stroke-width: 4; opacity: 0.05; transition: opacity 0.5s; }
         .draw-part.visible { opacity: 1; stroke: #ff4444; filter: drop-shadow(0 0 8px #ff4444); }
-        #palabraDisplay { font-size: 80px; margin: 20px; letter-spacing: 15px; font-family: monospace; min-height: 100px; }
-        .vidas-box { font-size: 24px; padding: 10px 40px; border: 2px solid #333; border-radius: 50px; background: #1a1a2e; }
-        h1 { font-size: 60px; margin: 10px 0; }
+        #palabraDisplay { font-size: 70px; margin: 20px; letter-spacing: 15px; font-family: monospace; min-height: 90px; }
+        .vidas-box { font-size: 20px; padding: 10px 30px; border: 2px solid #333; border-radius: 50px; background: #1a1a2e; }
+        
+        .scoreboard { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-around; }
+        .score-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; min-width: 250px; border: 1px solid #333; }
     </style>
 </head>
 <body onclick="document.querySelectorAll('audio').forEach(a => a.muted = false)">
     <div class="game-layout">
-        <h1 id="status">ESPERANDO CAPITANES</h1>
+        <h1 id="status">ESPERANDO JUEGO</h1>
         <h2 id="turnoDisplay">TURNO: <span id="equipoNombre">---</span></h2>
 
         <svg id="hangman-svg" viewBox="0 0 200 250">
@@ -36,6 +38,17 @@
         <div id="palabraDisplay">_ _ _ _ _</div>
         <div class="vidas-box">ERRORES: <span id="errores" style="color: #ff4444;">0</span> / <span id="maxVidas">0</span></div>
 
+        <div class="scoreboard">
+            <div class="score-card">
+                <h3 class="Wuachiturros">Wuachiturros</h3>
+                Rondas: <span id="rondas-W">0</span> | Éxitos: <span id="exitos-W">0</span>
+            </div>
+            <div class="score-card">
+                <h3 class="Chapisa">Chapisa</h3>
+                Rondas: <span id="rondas-C">0</span> | Éxitos: <span id="exitos-C">0</span>
+            </div>
+        </div>
+
         <audio id="snd-success" src="https://actions.google.com/sounds/v1/cartoon/clink_clanking_pots.ogg"></audio>
         <audio id="snd-fail" src="https://actions.google.com/sounds/v1/horror/creak_free_door_close.ogg"></audio>
         <audio id="snd-victory" src="https://actions.google.com/sounds/v1/human_voices/applause.ogg"></audio>
@@ -47,39 +60,35 @@
 
         socket.on('updateState', (state) => {
             if (state.estado === "SETUP") {
-                document.getElementById('status').innerText = "ESPERANDO PALABRA...";
+                document.getElementById('status').innerText = "CONFIGURANDO...";
                 document.getElementById('palabraDisplay').innerText = "_ _ _ _ _";
                 document.getElementById('equipoNombre').innerText = "CAPITÁN " + state.equipoQuePonePalabra;
                 document.getElementById('equipoNombre').className = state.equipoQuePonePalabra;
                 for(let i=1; i<=6; i++) document.getElementById('p' + i).classList.remove('visible');
                 lastErr = 0; lastAc = 0;
-                return;
+            } else {
+                const acActuales = state.letrasAdivinadas.filter(l => state.palabra.includes(l)).length;
+                if (state.estado === "JUGANDO") {
+                    if (state.errores > lastErr) document.getElementById('snd-fail').play().catch(()=>{});
+                    else if (acActuales > lastAc) document.getElementById('snd-success').play().catch(()=>{});
+                } else if (state.estado.startsWith("GANO")) {
+                    document.getElementById('snd-victory').play().catch(()=>{});
+                    lanzarCelebracion();
+                }
+                lastErr = state.errores; lastAc = acActuales;
+                actualizarUI(state);
             }
-
-            const acActuales = state.letrasAdivinadas.filter(l => state.palabra.includes(l)).length;
-            if (state.estado === "JUGANDO") {
-                if (state.errores > lastErr) document.getElementById('snd-fail').play().catch(()=>{});
-                else if (acActuales > lastAc) document.getElementById('snd-success').play().catch(()=>{});
-            } else if (state.estado.startsWith("GANO")) {
-                document.getElementById('snd-victory').play().catch(()=>{});
-                lanzarCelebracion();
-            }
-            lastErr = state.errores; lastAc = acActuales;
-            actualizarUI(state);
+            actualizarPuntos(state.puntos);
         });
 
         function actualizarUI(state) {
             const eq = document.getElementById('equipoNombre');
             eq.innerText = state.turno; eq.className = state.turno;
-            
             if(state.estado === "JUGANDO") {
                 document.getElementById('status').innerText = "¡ADIVINEN!";
                 document.getElementById('palabraDisplay').innerText = state.palabra.split('').map(l => state.letrasAdivinadas.includes(l) ? l : "_").join(' ');
-            } else if (state.estado.startsWith("GANO")) {
-                document.getElementById('status').innerText = "¡VICTORIA!";
-            } else if (state.estado.startsWith("PERDIO")) {
-                document.getElementById('status').innerText = "¡FIN! ERA: " + state.palabra;
-            }
+            } else if (state.estado.startsWith("GANO")) document.getElementById('status').innerText = "¡VICTORIA!";
+            else if (state.estado.startsWith("PERDIO")) document.getElementById('status').innerText = "¡FIN! ERA: " + state.palabra;
 
             document.getElementById('errores').innerText = state.errores;
             document.getElementById('maxVidas').innerText = state.vidasTotales;
@@ -90,12 +99,19 @@
             }
         }
 
+        function actualizarPuntos(p) {
+            document.getElementById('rondas-W').innerText = p.Wuachiturros.rondas;
+            document.getElementById('exitos-W').innerText = p.Wuachiturros.adivinadas;
+            document.getElementById('rondas-C').innerText = p.Chapisa.rondas;
+            document.getElementById('exitos-C').innerText = p.Chapisa.adivinadas;
+        }
+
         function lanzarCelebracion() {
             const end = Date.now() + 4000;
             const interval = setInterval(() => {
                 if (Date.now() > end) return clearInterval(interval);
-                confetti({ particleCount: 40, origin: { x: Math.random(), y: Math.random() - 0.2 }, colors: ['#00f2ff', '#ff00ff'] });
-            }, 250);
+                confetti({ particleCount: 30, origin: { x: Math.random(), y: Math.random() - 0.2 }, colors: ['#00f2ff', '#ff00ff'] });
+            }, 300);
         }
     </script>
 </body>
