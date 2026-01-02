@@ -36,6 +36,7 @@ io.on('connection', (socket) => {
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
         gameState.estado = "JUGANDO";
+        // Si el capitán de un equipo pone la palabra, le toca adivinar al otro
         gameState.turno = (data.equipo === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
         io.emit('updateState', gameState);
     });
@@ -51,6 +52,14 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('nextRound', () => {
+        gameState.palabra = "";
+        gameState.letrasAdivinadas = [];
+        gameState.errores = 0;
+        gameState.estado = "SETUP";
+        io.emit('updateState', gameState);
+    });
+
     socket.on('disconnect', () => {
         if (socket.id === gameState.capitanes.Wuachiturros) gameState.capitanes.Wuachiturros = null;
         if (socket.id === gameState.capitanes.Chapisa) gameState.capitanes.Chapisa = null;
@@ -64,4 +73,4 @@ function validarFinal() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Servidor listo en puerto ${PORT}`));
+server.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
