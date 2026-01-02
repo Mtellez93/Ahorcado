@@ -13,10 +13,14 @@ let gameState = {
     letrasAdivinadas: [],
     vidasTotales: 6,
     errores: 0,
-    turno: "Wuachiturros", // Equipo que adivina
-    equipoQuePonePalabra: "Chapisa", // Empieza Chapisa poniendo para que Wuachiturros adivine
+    turno: "Wuachiturros",
+    equipoQuePonePalabra: "Chapisa",
     capitanes: { Wuachiturros: null, Chapisa: null },
-    estado: "SETUP" 
+    estado: "SETUP",
+    puntos: {
+        Wuachiturros: { rondas: 0, adivinadas: 0 },
+        Chapisa: { rondas: 0, adivinadas: 0 }
+    }
 };
 
 io.on('connection', (socket) => {
@@ -32,18 +36,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('startGame', (data) => {
-        // Validación: Solo el equipo al que le toca puede iniciar la ronda
         if (data.equipo !== gameState.equipoQuePonePalabra) return;
-
         gameState.palabra = data.palabra.toUpperCase();
         gameState.vidasTotales = parseInt(data.vidas);
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
         gameState.estado = "JUGANDO";
-        
-        // El equipo que adivina es el opuesto al que puso la palabra
         gameState.turno = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
-        
         io.emit('updateState', gameState);
     });
 
@@ -59,9 +58,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('nextRound', () => {
-        // Alternamos automáticamente quién pone la palabra para la siguiente ronda
-        gameState.equipoQuePonePalabra = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
+        // Al cerrar la ronda, contamos una ronda completada para el que adivinaba
+        gameState.puntos[gameState.turno].rondas += 1;
         
+        gameState.equipoQuePonePalabra = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
         gameState.palabra = "";
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
@@ -77,8 +77,12 @@ io.on('connection', (socket) => {
 
 function validarFinal() {
     const ganaste = gameState.palabra.split('').every(l => gameState.letrasAdivinadas.includes(l));
-    if (ganaste) gameState.estado = "GANO_" + gameState.turno;
-    else if (gameState.errores >= gameState.vidasTotales) gameState.estado = "PERDIO_" + gameState.turno;
+    if (ganaste) {
+        gameState.estado = "GANO_" + gameState.turno;
+        gameState.puntos[gameState.turno].adivinadas += 1;
+    } else if (gameState.errores >= gameState.vidasTotales) {
+        gameState.estado = "PERDIO_" + gameState.turno;
+    }
 }
 
 const PORT = process.env.PORT || 3000;
