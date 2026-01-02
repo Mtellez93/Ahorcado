@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { background: #0a0a12; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; margin: 0; overflow: hidden; }
-        .game-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .game-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; position: relative; }
         .Wuachiturros { color: #00f2ff; text-shadow: 0 0 20px #00f2ff; }
         .Chapisa { color: #ff00ff; text-shadow: 0 0 20px #ff00ff; }
         #hangman-svg { width: 220px; height: 220px; }
@@ -17,10 +17,14 @@
         .vidas-box { font-size: 20px; padding: 10px 30px; border: 2px solid #333; border-radius: 50px; background: #1a1a2e; }
         .scoreboard { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-around; }
         .score-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; min-width: 250px; border: 1px solid #333; }
+        #timer-display { position: absolute; top: 20px; right: 40px; font-size: 50px; font-weight: bold; padding: 20px; border: 4px solid #fff; border-radius: 50%; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+        .timer-low { color: #ff4444; border-color: #ff4444 !important; animation: blink 0.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body onclick="document.querySelectorAll('audio').forEach(a => a.muted = false)">
     <div class="game-layout">
+        <div id="timer-display">40</div>
         <h1 id="status">ESPERANDO JUEGO</h1>
         <h2 id="turnoDisplay">TURNO: <span id="equipoNombre">---</span></h2>
 
@@ -58,6 +62,13 @@
         let lastErr = 0, lastAc = 0;
 
         socket.on('updateState', (state) => {
+            // Actualizar Timer
+            const timerDiv = document.getElementById('timer-display');
+            timerDiv.innerText = state.timer;
+            if(state.timer <= 10) timerDiv.classList.add('timer-low');
+            else timerDiv.classList.remove('timer-low');
+            timerDiv.style.display = state.estado === "JUGANDO" ? "flex" : "none";
+
             if (state.estado === "SETUP") {
                 document.getElementById('status').innerText = "CONFIGURANDO...";
                 document.getElementById('palabraDisplay').innerText = "_ _ _ _ _";
