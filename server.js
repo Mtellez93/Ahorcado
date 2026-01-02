@@ -13,7 +13,8 @@ let gameState = {
     letrasAdivinadas: [],
     vidasTotales: 6,
     errores: 0,
-    turno: "Wuachiturros",
+    turno: "Wuachiturros", // Equipo que adivina
+    equipoQuePonePalabra: "Chapisa", // Empieza Chapisa poniendo para que Wuachiturros adivine
     capitanes: { Wuachiturros: null, Chapisa: null },
     estado: "SETUP" 
 };
@@ -31,13 +32,18 @@ io.on('connection', (socket) => {
     });
 
     socket.on('startGame', (data) => {
+        // Validación: Solo el equipo al que le toca puede iniciar la ronda
+        if (data.equipo !== gameState.equipoQuePonePalabra) return;
+
         gameState.palabra = data.palabra.toUpperCase();
         gameState.vidasTotales = parseInt(data.vidas);
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
         gameState.estado = "JUGANDO";
-        // Si el capitán de un equipo pone la palabra, le toca adivinar al otro
-        gameState.turno = (data.equipo === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
+        
+        // El equipo que adivina es el opuesto al que puso la palabra
+        gameState.turno = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
+        
         io.emit('updateState', gameState);
     });
 
@@ -53,6 +59,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('nextRound', () => {
+        // Alternamos automáticamente quién pone la palabra para la siguiente ronda
+        gameState.equipoQuePonePalabra = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
+        
         gameState.palabra = "";
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
