@@ -17,20 +17,20 @@
 </head>
 <body>
     <div id="pantalla-union" class="setup-box">
-        <h2>EQUIPO</h2>
+        <h2>ELIE TU EQUIPO</h2>
         <select id="equipoSelect" style="padding: 12px; width: 100%; margin-bottom: 20px;">
             <option value="Wuachiturros">Wuachiturros</option>
             <option value="Chapisa">Chapisa</option>
         </select>
-        <button onclick="unirse()" style="background: #00f2ff; color: #000; width: 100%;">ENTRAR</button>
+        <button onclick="unirse()" style="background: #00f2ff; color: #000; width: 100%;">ENTRAR AL JUEGO</button>
     </div>
 
     <div id="pantalla-capitan" class="setup-box" style="display:none;">
         <h3 id="rolTag" style="color: #00f2ff;">CAPITÁN</h3>
-        <p>Escribe la palabra para el otro equipo:</p>
+        <p id="instruccionCapitan">Escribe la palabra para el otro equipo:</p>
         <input type="text" id="palabraInput" placeholder="PALABRA SECRETA">
         <input type="number" id="vidasInput" value="6" placeholder="VIDAS">
-        <button onclick="enviar()" style="background: #ff00ff; color: white; width: 100%;">EMPEZAR RONDA</button>
+        <button id="btn-iniciar-ronda" onclick="enviar()" style="background: #ff00ff; color: white; width: 100%;">EMPEZAR RONDA</button>
     </div>
 
     <div id="pantalla-juego" style="display:none;">
@@ -63,7 +63,6 @@
             const v = document.getElementById('vidasInput').value;
             if(p) {
                 socket.emit('startGame', { palabra: p, vidas: v, equipo: miEquipo });
-                document.getElementById('pantalla-capitan').style.display = 'none';
             }
         }
 
@@ -80,11 +79,28 @@
                 document.getElementById('pantalla-juego').style.display = 'none';
                 if(miRol === 'capitan') {
                     document.getElementById('pantalla-capitan').style.display = 'block';
-                    document.getElementById('palabraInput').value = "";
+                    const esMiTurnoDePoner = (miEquipo === state.equipoQuePonePalabra);
+                    const btnEmpezar = document.getElementById('btn-iniciar-ronda');
+                    const inputP = document.getElementById('palabraInput');
+                    const inputV = document.getElementById('vidasInput');
+
+                    if (esMiTurnoDePoner) {
+                        document.getElementById('rolTag').innerText = "¡TU TURNO, CAPITÁN!";
+                        document.getElementById('instruccionCapitan').innerText = "Elige la palabra para el rival:";
+                        btnEmpezar.disabled = false; btnEmpezar.style.opacity = "1";
+                        inputP.disabled = false; inputV.disabled = false;
+                        inputP.value = "";
+                    } else {
+                        document.getElementById('rolTag').innerText = "ESPERA AL OTRO CAPITÁN";
+                        document.getElementById('instruccionCapitan').innerText = "El rival está eligiendo palabra...";
+                        btnEmpezar.disabled = true; btnEmpezar.style.opacity = "0.3";
+                        inputP.disabled = true; inputV.disabled = true;
+                    }
                 }
                 return;
             }
 
+            document.getElementById('pantalla-capitan').style.display = 'none';
             document.getElementById('pantalla-juego').style.display = 'block';
             const esMiT = state.turno === miEquipo;
             const juegoTerminado = state.estado.startsWith("GANO") || state.estado.startsWith("PERDIO");
