@@ -11,15 +11,14 @@ app.use(express.static('public'));
 let gameState = {
     palabra: "",
     letrasAdivinadas: [],
-    vidas: 6,
+    vidasTotales: 6,
     errores: 0,
     turno: "Wuachiturros",
     capitanes: { Wuachiturros: null, Chapisa: null },
-    setupCompleto: false
+    estado: "SETUP" 
 };
 
 io.on('connection', (socket) => {
-    // Al conectarse, enviamos el estado actual
     socket.emit('updateState', gameState);
 
     socket.on('setRole', (equipo) => {
@@ -32,29 +31,37 @@ io.on('connection', (socket) => {
     });
 
     socket.on('startGame', (data) => {
-        // Solo el capitán del equipo contrario o el primero que configure
         gameState.palabra = data.palabra.toUpperCase();
-        gameState.vidas = data.vidas;
+        gameState.vidasTotales = parseInt(data.vidas);
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
-        gameState.setupCompleto = true;
+        gameState.estado = "JUGANDO";
+        gameState.turno = (data.equipo === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
         io.emit('updateState', gameState);
     });
 
     socket.on('intentarLetra', (data) => {
-        if (data.equipo !== gameState.turno) return;
-
+        if (gameState.estado !== "JUGANDO" || data.equipo !== gameState.turno) return;
         const letra = data.letra.toUpperCase();
         if (!gameState.letrasAdivinadas.includes(letra)) {
             gameState.letrasAdivinadas.push(letra);
-            if (!gameState.palabra.includes(letra)) {
-                gameState.errores++;
-            }
-            // Lógica simple de cambio de turno si falla o siempre
-            // Aquí lo dejaremos fijo hasta que el servidor decida
+            if (!gameState.palabra.includes(letra)) gameState.errores++;
+            validarFinal();
             io.emit('updateState', gameState);
         }
     });
+
+    socket.on('disconnect', () => {
+        if (socket.id === gameState.capitanes.Wuachiturros) gameState.capitanes.Wuachiturros = null;
+        if (socket.id === gameState.capitanes.Chapisa) gameState.capitanes.Chapisa = null;
+    });
 });
 
-server.listen(3000, () => console.log('Servidor corriendo en puerto 3000'));
+function validarFinal() {
+    const ganaste = gameState.palabra.split('').every(l => gameState.letrasAdivinadas.includes(l));
+    if (ganaste) gameState.estado = "GANO_" + gameState.turno;
+    else if (gameState.errores >= gameState.vidasTotales) gameState.estado = "PERDIO_" + gameState.turno;
+}
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Servidor listo en puerto ${PORT}`));
