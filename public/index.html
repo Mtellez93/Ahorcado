@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tablero Ahorcado TV</title>
+    <title>Tablero TV - Ahorcado</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -10,17 +10,17 @@
         .game-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         .Wuachiturros { color: #00f2ff; text-shadow: 0 0 20px #00f2ff; }
         .Chapisa { color: #ff00ff; text-shadow: 0 0 20px #ff00ff; }
-        #hangman-svg { width: 300px; height: 300px; margin: 10px; }
-        .draw-part { fill: none; stroke: white; stroke-width: 4; opacity: 0.1; transition: opacity 0.5s; }
+        #hangman-svg { width: 280px; height: 280px; margin: 10px; }
+        .draw-part { fill: none; stroke: white; stroke-width: 4; opacity: 0.05; transition: opacity 0.5s; }
         .draw-part.visible { opacity: 1; stroke: #ff4444; filter: drop-shadow(0 0 8px #ff4444); }
-        #palabraDisplay { font-size: 80px; margin: 20px; letter-spacing: 15px; font-family: monospace; }
+        #palabraDisplay { font-size: 80px; margin: 20px; letter-spacing: 15px; font-family: monospace; min-height: 100px; }
         .vidas-box { font-size: 24px; padding: 10px 40px; border: 2px solid #333; border-radius: 50px; background: #1a1a2e; }
-        h1 { font-size: 60px; margin: 10px 0; text-transform: uppercase; }
+        h1 { font-size: 60px; margin: 10px 0; }
     </style>
 </head>
-<body>
-    <div class="game-layout" onclick="this.querySelector('audio').play().catch(e=>{})">
-        <h1 id="status">ESPERANDO JUGADORES</h1>
+<body onclick="document.querySelectorAll('audio').forEach(a => a.muted = false)">
+    <div class="game-layout">
+        <h1 id="status">ESPERANDO CAPITANES</h1>
         <h2 id="turnoDisplay">TURNO: <span id="equipoNombre">---</span></h2>
 
         <svg id="hangman-svg" viewBox="0 0 200 250">
@@ -46,12 +46,21 @@
         let lastErr = 0, lastAc = 0;
 
         socket.on('updateState', (state) => {
+            if (state.estado === "SETUP") {
+                document.getElementById('status').innerText = "CONFIGURANDO...";
+                document.getElementById('palabraDisplay').innerText = "_ _ _ _ _";
+                document.getElementById('equipoNombre').innerText = "---";
+                for(let i=1; i<=6; i++) document.getElementById('p' + i).classList.remove('visible');
+                lastErr = 0; lastAc = 0;
+                return;
+            }
+
             const acActuales = state.letrasAdivinadas.filter(l => state.palabra.includes(l)).length;
             if (state.estado === "JUGANDO") {
-                if (state.errores > lastErr) document.getElementById('snd-fail').play();
-                else if (acActuales > lastAc) document.getElementById('snd-success').play();
+                if (state.errores > lastErr) document.getElementById('snd-fail').play().catch(()=>{});
+                else if (acActuales > lastAc) document.getElementById('snd-success').play().catch(()=>{});
             } else if (state.estado.startsWith("GANO")) {
-                document.getElementById('snd-victory').play();
+                document.getElementById('snd-victory').play().catch(()=>{});
                 lanzarCelebracion();
             }
             lastErr = state.errores; lastAc = acActuales;
@@ -65,8 +74,11 @@
             if(state.estado === "JUGANDO") {
                 document.getElementById('status').innerText = "¡ADIVINEN!";
                 document.getElementById('palabraDisplay').innerText = state.palabra.split('').map(l => state.letrasAdivinadas.includes(l) ? l : "_").join(' ');
-            } else if (state.estado.startsWith("GANO")) document.getElementById('status').innerText = "¡GANAN LOS " + state.turno + "!";
-            else if (state.estado.startsWith("PERDIO")) document.getElementById('status').innerText = "¡FIN! ERA: " + state.palabra;
+            } else if (state.estado.startsWith("GANO")) {
+                document.getElementById('status').innerText = "¡VICTORIA!";
+            } else if (state.estado.startsWith("PERDIO")) {
+                document.getElementById('status').innerText = "¡FIN! ERA: " + state.palabra;
+            }
 
             document.getElementById('errores').innerText = state.errores;
             document.getElementById('maxVidas').innerText = state.vidasTotales;
@@ -74,16 +86,15 @@
             for(let i=1; i<=6; i++) {
                 const part = document.getElementById('p' + i);
                 if (state.errores >= (state.vidasTotales / 6) * i) part.classList.add('visible');
-                else part.classList.remove('visible');
             }
         }
 
         function lanzarCelebracion() {
-            const end = Date.now() + 5000;
+            const end = Date.now() + 4000;
             const interval = setInterval(() => {
                 if (Date.now() > end) return clearInterval(interval);
                 confetti({ particleCount: 40, origin: { x: Math.random(), y: Math.random() - 0.2 }, colors: ['#00f2ff', '#ff00ff'] });
-            }, 200);
+            }, 250);
         }
     </script>
 </body>
