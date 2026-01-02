@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mando Ahorcado</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #121212; color: white; text-align: center; }
+        button { padding: 15px; margin: 5px; font-size: 16px; border-radius: 8px; border: none; font-weight: bold; }
+        .btn-letra { width: 18%; background: #333; color: white; }
+        .btn-letra:disabled { opacity: 0.2; }
+        input { padding: 12px; width: 90%; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #222; color: white; }
+        .mi-turno { border: 2px solid #00f2ff; background: #00f2ff11; padding: 10px; border-radius: 10px; }
+        .setup-box { background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <div id="pantalla-union" class="setup-box">
+        <h2>ELIE TU EQUIPO</h2>
+        <select id="equipoSelect" style="padding: 12px; width: 100%; margin-bottom: 20px;">
+            <option value="Wuachiturros">Wuachiturros</option>
+            <option value="Chapisa">Chapisa</option>
+        </select>
+        <button onclick="unirse()" style="background: #00f2ff; color: #000; width: 100%;">ENTRAR AL JUEGO</button>
+    </div>
+
+    <div id="pantalla-capitan" class="setup-box" style="display:none;">
+        <h3 id="rolTag" style="color: #00f2ff;">CAPITÁN</h3>
+        <input type="text" id="palabraInput" placeholder="Palabra para el rival">
+        <input type="number" id="vidasInput" value="6">
+        <button onclick="enviar()" style="background: #ff00ff; color: white; width: 100%;">FIJAR Y EMPEZAR</button>
+    </div>
+
+    <div id="pantalla-juego" style="display:none;">
+        <div id="infoTurno">Esperando...</div>
+        <div id="teclado" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let miEquipo = "", lastErr = 0;
+
+        function unirse() {
+            miEquipo = document.getElementById('equipoSelect').value;
+            socket.emit('setRole', miEquipo);
+            document.getElementById('pantalla-union').style.display = 'none';
+        }
+
+        socket.on('roleAssign', (data) => {
+            if (data.role === 'capitan') document.getElementById('pantalla-capitan').style.display = 'block';
+            else {
+                document.getElementById('pantalla-juego').style.display = 'block';
+                document.getElementById('infoTurno').innerText = "ERES JUGADOR. ESPERA AL CAPITÁN.";
+            }
+        });
+
+        function enviar() {
+            const p = document.getElementById('palabraInput').value;
+            const v = document.getElementById('vidasInput').value;
+            if(p) socket.emit('startGame', { palabra: p, vidas: v, equipo: miEquipo });
+        }
+
+        const divT = document.getElementById('teclado');
+        "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('').forEach(l => {
+            const b = document.createElement('button');
+            b.innerText = l; b.className = 'btn-letra';
+            b.onclick = () => socket.emit('intentarLetra', { letra: l, equipo: miEquipo });
+            divT.appendChild(b);
+        });
+
+        socket.on('updateState', (state) => {
+            if (state.estado === "JUGANDO") {
+                document.getElementById('pantalla-capitan').style.display = 'none';
+                document.getElementById('pantalla-juego').style.display = 'block';
+                const esMiT = state.turno === miEquipo;
+                const info = document.getElementById('infoTurno');
+                info.innerText = esMiT ? "¡TU TURNO!" : "TURNO DEL RIVAL...";
+                info.className = esMiT ? "mi-turno" : "";
+                
+                if (state.errores > lastErr && esMiT && navigator.vibrate) navigator.vibrate(200);
+                lastErr = state.errores;
+
+                document.querySelectorAll('.btn-letra').forEach(b => {
+                    b.disabled = !esMiT || state.letrasAdivinadas.includes(b.innerText);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
