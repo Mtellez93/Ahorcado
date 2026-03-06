@@ -31,11 +31,30 @@ let gameState = {
     lobbyCode: LOBBY_CODE,
     playersByTeam: { Wuachiturros: 0, Chapisa: 0 },
     totalPlayers: 0,
-    canStartMatch: false
+    canStartMatch: false,
+    matchResultMessage: ""
 };
 
 let timerInterval = null;
 const playerTeamBySocket = new Map();
+const MAX_RONDAS = 5;
+
+function reiniciarPartidaALobby() {
+    stopTimer();
+    gameState.puntos = {
+        Wuachiturros: { rondas: 0, adivinadas: 0 },
+        Chapisa: { rondas: 0, adivinadas: 0 }
+    };
+    gameState.palabra = "";
+    gameState.letrasAdivinadas = [];
+    gameState.errores = 0;
+    gameState.estado = "LOBBY";
+    gameState.equipoQuePonePalabra = "Chapisa";
+    gameState.turno = "Wuachiturros";
+    gameState.timer = 40;
+    gameState.matchResultMessage = "";
+    actualizarLobbyStatus();
+}
 
 function startTimer() {
     stopTimer();
@@ -130,26 +149,37 @@ io.on('connection', (socket) => {
     socket.on('nextRound', () => {
         stopTimer();
         gameState.puntos[gameState.turno].rondas += 1;
+
+        const rondasJugadas = gameState.puntos.Wuachiturros.rondas + gameState.puntos.Chapisa.rondas;
+        if (rondasJugadas >= MAX_RONDAS) {
+            const exitosW = gameState.puntos.Wuachiturros.adivinadas;
+            const exitosC = gameState.puntos.Chapisa.adivinadas;
+
+            if (exitosW > exitosC) gameState.matchResultMessage = 'GANADOR: WUACHITURROS';
+            else if (exitosC > exitosW) gameState.matchResultMessage = 'GANADOR: CHAPISA';
+            else gameState.matchResultMessage = 'EMPATE';
+
+            gameState.estado = 'MATCH_RESULT';
+            io.emit('updateState', gameState);
+
+            setTimeout(() => {
+                reiniciarPartidaALobby();
+                io.emit('updateState', gameState);
+            }, 6000);
+            return;
+        }
+
         gameState.equipoQuePonePalabra = (gameState.equipoQuePonePalabra === "Wuachiturros") ? "Chapisa" : "Wuachiturros";
         gameState.palabra = "";
         gameState.letrasAdivinadas = [];
         gameState.errores = 0;
         gameState.estado = "SETUP";
+        gameState.matchResultMessage = "";
         io.emit('updateState', gameState);
     });
 
     socket.on('resetFullGame', () => {
-        stopTimer();
-        gameState.puntos = {
-            Wuachiturros: { rondas: 0, adivinadas: 0 },
-            Chapisa: { rondas: 0, adivinadas: 0 }
-        };
-        gameState.palabra = "";
-        gameState.letrasAdivinadas = [];
-        gameState.errores = 0;
-        gameState.estado = "LOBBY";
-        gameState.equipoQuePonePalabra = "Chapisa";
-        gameState.turno = "Wuachiturros";
+        reiniciarPartidaALobby();
         io.emit('updateState', gameState);
     });
 

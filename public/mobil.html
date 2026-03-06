@@ -133,6 +133,17 @@
                 return;
             }
 
+
+            if (state.estado === "MATCH_RESULT") {
+                document.getElementById('pantalla-capitan').style.display = 'none';
+                document.getElementById('pantalla-juego').style.display = 'block';
+                document.getElementById('teclado').style.display = 'none';
+                document.getElementById('btn-next').style.display = 'none';
+                document.getElementById('infoTurno').innerText = state.matchResultMessage || 'FIN DE PARTIDA';
+                document.getElementById('infoTurno').style.background = '#444';
+                return;
+            }
+
             if (state.estado === "SETUP") {
                 document.getElementById('pantalla-juego').style.display = 'none';
                 if(miRol === 'capitan') {
