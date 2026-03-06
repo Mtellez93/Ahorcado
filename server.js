@@ -38,6 +38,9 @@ let gameState = {
 let timerInterval = null;
 const playerTeamBySocket = new Map();
 const MAX_RONDAS = 5;
+const SESSION_GRACE_MS = 90000;
+const playerSessions = new Map();
+const sessionBySocket = new Map();
 
 function reiniciarPartidaALobby() {
     stopTimer();
@@ -91,10 +94,26 @@ io.on('connection', (socket) => {
     actualizarLobbyStatus();
     socket.emit('updateState', gameState);
 
-    socket.on('setRole', ({ equipo, lobbyCode }) => {
+    socket.on('setRole', ({ equipo, lobbyCode, sessionId }) => {
         if (lobbyCode !== gameState.lobbyCode) {
             socket.emit('joinDenied', 'Código de lobby incorrecto.');
             return;
+        }
+
+        if (!sessionId) {
+            socket.emit('joinDenied', 'Sesión inválida. Vuelve a unirte al lobby.');
+            return;
+        }
+
+        const existingSession = playerSessions.get(sessionId);
+        if (existingSession?.disconnectTimer) {
+            clearTimeout(existingSession.disconnectTimer);
+            existingSession.disconnectTimer = null;
+        }
+
+        if (existingSession?.socketId && existingSession.socketId !== socket.id) {
+            playerTeamBySocket.delete(existingSession.socketId);
+            sessionBySocket.delete(existingSession.socketId);
         }
 
         const previo = playerTeamBySocket.get(socket.id);
@@ -102,12 +121,33 @@ io.on('connection', (socket) => {
             if (gameState.capitanes[previo] === socket.id) gameState.capitanes[previo] = null;
         }
 
+        sessionBySocket.set(socket.id, sessionId);
         playerTeamBySocket.set(socket.id, equipo);
 
-        if (!gameState.capitanes[equipo]) {
+        const restoredCaptain = existingSession?.role === 'capitan' && existingSession.equipo === equipo;
+
+        if (existingSession) {
+            existingSession.socketId = socket.id;
+            existingSession.equipo = equipo;
+            existingSession.role = restoredCaptain ? 'capitan' : existingSession.role;
+        } else {
+            playerSessions.set(sessionId, {
+                socketId: socket.id,
+                equipo,
+                role: null,
+                disconnectTimer: null
+            });
+        }
+
+        if (restoredCaptain) {
             gameState.capitanes[equipo] = socket.id;
             socket.emit('roleAssign', { role: 'capitan', equipo });
+        } else if (!gameState.capitanes[equipo]) {
+            gameState.capitanes[equipo] = socket.id;
+            playerSessions.get(sessionId).role = 'capitan';
+            socket.emit('roleAssign', { role: 'capitan', equipo });
         } else {
+            playerSessions.get(sessionId).role = 'jugador';
             socket.emit('roleAssign', { role: 'jugador', equipo });
         }
 
@@ -184,6 +224,33 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
+        const sessionId = sessionBySocket.get(socket.id);
+
+        if (sessionId && playerSessions.has(sessionId)) {
+            const session = playerSessions.get(sessionId);
+            session.disconnectTimer = setTimeout(() => {
+                const team = playerTeamBySocket.get(socket.id);
+                playerTeamBySocket.delete(socket.id);
+                sessionBySocket.delete(socket.id);
+                playerSessions.delete(sessionId);
+
+                if (socket.id === gameState.capitanes.Wuachiturros) gameState.capitanes.Wuachiturros = null;
+                if (socket.id === gameState.capitanes.Chapisa) gameState.capitanes.Chapisa = null;
+
+                if (team && !gameState.capitanes[team]) {
+                    const nuevoCapitan = [...playerTeamBySocket.entries()].find(([, t]) => t === team);
+                    if (nuevoCapitan) {
+                        gameState.capitanes[team] = nuevoCapitan[0];
+                        io.to(nuevoCapitan[0]).emit('roleAssign', { role: 'capitan', equipo: team });
+                    }
+                }
+
+                actualizarLobbyStatus();
+                io.emit('updateState', gameState);
+            }, SESSION_GRACE_MS);
+            return;
+        }
+
         const team = playerTeamBySocket.get(socket.id);
         playerTeamBySocket.delete(socket.id);
         if (socket.id === gameState.capitanes.Wuachiturros) gameState.capitanes.Wuachiturros = null;
