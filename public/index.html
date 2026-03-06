@@ -17,6 +17,8 @@
         #palabraDisplay { font-size: 70px; margin: 20px; letter-spacing: 15px; font-family: monospace; min-height: 90px; }
         .vidas-box { font-size: 20px; padding: 10px 30px; border: 2px solid #333; border-radius: 50px; background: #1a1a2e; }
         .scoreboard { position: absolute; bottom: 20px; display: flex; width: 100%; justify-content: space-around; }
+        .top-controls { position: absolute; top: 20px; left: 20px; z-index: 2; }
+        #btn-restart-game { padding: 10px 14px; border-radius: 10px; border: none; font-weight: 700; background: #ff8c00; color: #231300; }
         .score-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; min-width: 250px; border: 1px solid #333; }
         #timer-display { position: absolute; top: 20px; right: 40px; font-size: 50px; font-weight: bold; padding: 20px; border: 4px solid #fff; border-radius: 50%; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
         .timer-low { color: #ff4444; border-color: #ff4444 !important; animation: blink 0.5s infinite; }
@@ -29,6 +31,9 @@
 </head>
 <body onclick="document.querySelectorAll('audio').forEach(a => a.muted = false)">
     <div class="game-layout">
+        <div class="top-controls">
+            <button id="btn-restart-game" onclick="if(confirm('¿Reiniciar la partida y volver al lobby?')) socket.emit('resetFullGame')">Restart Game</button>
+        </div>
         <div id="timer-display">40</div>
         <div id="lobbyPanel" style="display:none;">
             <h2 style="margin: 4px 0;">Lobby</h2>
@@ -104,6 +109,16 @@
             }
 
             document.getElementById('lobbyPanel').style.display = 'none';
+
+            if (state.estado === "MATCH_RESULT") {
+                document.getElementById('status').innerText = state.matchResultMessage || 'RESULTADO';
+                document.getElementById('equipoNombre').innerText = 'FIN DE PARTIDA';
+                document.getElementById('palabraDisplay').innerText = 'Reiniciando lobby...';
+                document.getElementById('errores').innerText = '0';
+                for (let i = 1; i <= 6; i++) document.getElementById('p' + i).classList.remove('visible');
+                actualizarPuntos(state.puntos);
+                return;
+            }
 
             if (state.estado === "SETUP") {
                 document.getElementById('status').innerText = "CONFIGURANDO...";
