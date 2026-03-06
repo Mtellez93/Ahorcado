@@ -57,8 +57,19 @@
     </div>
 
     <script>
-        const socket = io();
+        const socket = io({ reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 500, reconnectionDelayMax: 2000 });
         let miEquipo = "", miRol = "", lastErr = 0;
+        const STORAGE_KEY = 'ahorcado-mobile-session';
+
+        function getClientSessionId() {
+            const existing = localStorage.getItem(STORAGE_KEY);
+            if (existing) return existing;
+            const generated = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem(STORAGE_KEY, generated);
+            return generated;
+        }
+
+        const sessionId = getClientSessionId();
 
         const params = new URLSearchParams(window.location.search);
         const codeParam = params.get('code');
@@ -72,10 +83,31 @@
             }
 
             miEquipo = document.getElementById('equipoSelect').value;
-            socket.emit('setRole', { equipo: miEquipo, lobbyCode });
+            localStorage.setItem('ahorcado-last-lobby', lobbyCode);
+            localStorage.setItem('ahorcado-last-team', miEquipo);
+            socket.emit('setRole', { equipo: miEquipo, lobbyCode, sessionId });
             document.getElementById('joinError').innerText = '';
         }
 
+
+        function rejoinSavedSession() {
+            const savedLobby = localStorage.getItem('ahorcado-last-lobby');
+            const savedTeam = localStorage.getItem('ahorcado-last-team');
+            if (!savedLobby || !savedTeam) return;
+
+            miEquipo = savedTeam;
+            document.getElementById('lobbyCodeInput').value = savedLobby;
+            document.getElementById('equipoSelect').value = savedTeam;
+            socket.emit('setRole', { equipo: miEquipo, lobbyCode: savedLobby, sessionId });
+        }
+
+        socket.on('connect', () => {
+            rejoinSavedSession();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && socket.connected) rejoinSavedSession();
+        });
         socket.on('joinDenied', (mensaje) => {
             document.getElementById('pantalla-union').style.display = 'block';
             document.getElementById('juego-container').style.display = 'none';
