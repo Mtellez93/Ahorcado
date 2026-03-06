@@ -20,12 +20,25 @@
         .score-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; min-width: 250px; border: 1px solid #333; }
         #timer-display { position: absolute; top: 20px; right: 40px; font-size: 50px; font-weight: bold; padding: 20px; border: 4px solid #fff; border-radius: 50%; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
         .timer-low { color: #ff4444; border-color: #ff4444 !important; animation: blink 0.5s infinite; }
+        #lobbyPanel { background: rgba(255,255,255,0.08); border: 1px solid #444; border-radius: 16px; padding: 16px 24px; margin-bottom: 20px; max-width: 420px; }
+        #qrImage { width: 170px; height: 170px; border-radius: 10px; background: white; padding: 6px; }
+        #btn-start-match { margin-top: 12px; padding: 12px 18px; border: none; border-radius: 10px; background: #2ce779; color: #03160a; font-size: 18px; font-weight: 700; }
+        #btn-start-match:disabled { opacity: 0.35; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body onclick="document.querySelectorAll('audio').forEach(a => a.muted = false)">
     <div class="game-layout">
         <div id="timer-display">40</div>
+        <div id="lobbyPanel" style="display:none;">
+            <h2 style="margin: 4px 0;">Lobby</h2>
+            <p style="margin: 6px 0;">Código: <b id="lobbyCodeDisplay">------</b></p>
+            <img id="qrImage" alt="QR para lobby" />
+            <p style="margin: 8px 0 0; font-size: 14px;">Escanea para abrir <b>mobil.html</b> y escribe el código.</p>
+            <p style="margin: 6px 0;">Conectados: W <b id="playersW">0</b> | C <b id="playersC">0</b></p>
+            <button id="btn-start-match" onclick="socket.emit('startMatch')" disabled>START GAME</button>
+        </div>
+
         <h1 id="status">ESPERANDO JUEGO</h1>
         <h2 id="turnoDisplay">TURNO: <span id="equipoNombre">---</span></h2>
 
@@ -63,12 +76,34 @@
         let lastErr = 0, lastAc = 0;
 
         socket.on('updateState', (state) => {
-            // Actualizar Timer
             const timerDiv = document.getElementById('timer-display');
             timerDiv.innerText = state.timer;
             if(state.timer <= 10) timerDiv.classList.add('timer-low');
             else timerDiv.classList.remove('timer-low');
             timerDiv.style.display = state.estado === "JUGANDO" ? "flex" : "none";
+
+            if (state.lobbyCode) {
+                const lobbyUrl = `${window.location.origin}/mobil.html?code=${state.lobbyCode}`;
+                document.getElementById('lobbyCodeDisplay').innerText = state.lobbyCode;
+                document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(lobbyUrl)}`;
+                document.getElementById('playersW').innerText = state.playersByTeam.Wuachiturros;
+                document.getElementById('playersC').innerText = state.playersByTeam.Chapisa;
+                document.getElementById('btn-start-match').disabled = !state.canStartMatch;
+            }
+
+            if (state.estado === "LOBBY") {
+                document.getElementById('lobbyPanel').style.display = 'block';
+                document.getElementById('status').innerText = "ESPERANDO JUGADORES";
+                document.getElementById('equipoNombre').innerText = "LOBBY";
+                document.getElementById('palabraDisplay').innerText = "_ _ _ _ _";
+                document.getElementById('errores').innerText = "0";
+                document.getElementById('maxVidas').innerText = state.vidasTotales;
+                for (let i = 1; i <= 6; i++) document.getElementById('p' + i).classList.remove('visible');
+                actualizarPuntos(state.puntos);
+                return;
+            }
+
+            document.getElementById('lobbyPanel').style.display = 'none';
 
             if (state.estado === "SETUP") {
                 document.getElementById('status').innerText = "CONFIGURANDO...";
