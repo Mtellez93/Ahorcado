@@ -108,6 +108,17 @@
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && socket.connected) rejoinSavedSession();
         });
+
+        socket.on('lobbyRecreated', () => {
+            miEquipo = "";
+            miRol = "";
+            localStorage.removeItem('ahorcado-last-lobby');
+            document.getElementById('pantalla-union').style.display = 'block';
+            document.getElementById('juego-container').style.display = 'none';
+            document.getElementById('joinError').innerText = 'Se creó un lobby nuevo. Escanea el nuevo QR y vuelve a entrar.';
+            document.getElementById('lobbyCodeInput').value = '';
+        });
+
         socket.on('joinDenied', (mensaje) => {
             document.getElementById('pantalla-union').style.display = 'block';
             document.getElementById('juego-container').style.display = 'none';
