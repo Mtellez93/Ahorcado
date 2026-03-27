@@ -42,11 +42,10 @@
             <h2 style="margin: 4px 0;">Lobby</h2>
             <p style="margin: 6px 0;">Código: <b id="lobbyCodeDisplay">------</b></p>
             <img id="qrImage" alt="QR para lobby" />
-            <p style="margin: 8px 0 0; font-size: 14px;">Escanea para abrir <b>mobil.html</b> y escribe el código.</p>
             <p style="margin: 6px 0;">Conectados: W <b id="playersW">0</b> | C <b id="playersC">0</b></p>
             <div class="lobby-actions">
                 <button id="btn-start-match" onclick="socket.emit('startMatch')" disabled>START GAME</button>
-                <button id="btn-new-lobby" onclick="if(confirm('¿Crear nuevo lobby y generar otro QR?')) socket.emit('createNewLobby')">NEW LOBBY + QR</button>
+                <button id="btn-new-lobby" onclick="if(confirm('¿Crear nuevo lobby y generar otro QR?')) socket.emit('createNewLobby')">NEW LOBBY</button>
             </div>
         </div>
 
