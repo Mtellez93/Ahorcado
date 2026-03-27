@@ -21,7 +21,6 @@ let gameState = {
     errores: 0,
     turno: "Wuachiturros",
     equipoQuePonePalabra: "Chapisa",
-    capitanes: { Wuachiturros: null, Chapisa: null },
     estado: "LOBBY",
     puntos: {
         Wuachiturros: { rondas: 0, adivinadas: 0 },
@@ -116,40 +115,23 @@ io.on('connection', (socket) => {
             sessionBySocket.delete(existingSession.socketId);
         }
 
-        const previo = playerTeamBySocket.get(socket.id);
-        if (previo) {
-            if (gameState.capitanes[previo] === socket.id) gameState.capitanes[previo] = null;
-        }
-
         sessionBySocket.set(socket.id, sessionId);
         playerTeamBySocket.set(socket.id, equipo);
-
-        const restoredCaptain = existingSession?.role === 'capitan' && existingSession.equipo === equipo;
 
         if (existingSession) {
             existingSession.socketId = socket.id;
             existingSession.equipo = equipo;
-            existingSession.role = restoredCaptain ? 'capitan' : existingSession.role;
         } else {
             playerSessions.set(sessionId, {
                 socketId: socket.id,
                 equipo,
-                role: null,
+                role: 'jugador',
                 disconnectTimer: null
             });
         }
 
-        if (restoredCaptain) {
-            gameState.capitanes[equipo] = socket.id;
-            socket.emit('roleAssign', { role: 'capitan', equipo });
-        } else if (!gameState.capitanes[equipo]) {
-            gameState.capitanes[equipo] = socket.id;
-            playerSessions.get(sessionId).role = 'capitan';
-            socket.emit('roleAssign', { role: 'capitan', equipo });
-        } else {
-            playerSessions.get(sessionId).role = 'jugador';
-            socket.emit('roleAssign', { role: 'jugador', equipo });
-        }
+        playerSessions.get(sessionId).role = 'jugador';
+        socket.emit('roleAssign', { role: 'jugador', equipo });
 
         actualizarLobbyStatus();
         io.emit('updateState', gameState);
@@ -234,35 +216,13 @@ io.on('connection', (socket) => {
                 sessionBySocket.delete(socket.id);
                 playerSessions.delete(sessionId);
 
-                if (socket.id === gameState.capitanes.Wuachiturros) gameState.capitanes.Wuachiturros = null;
-                if (socket.id === gameState.capitanes.Chapisa) gameState.capitanes.Chapisa = null;
-
-                if (team && !gameState.capitanes[team]) {
-                    const nuevoCapitan = [...playerTeamBySocket.entries()].find(([, t]) => t === team);
-                    if (nuevoCapitan) {
-                        gameState.capitanes[team] = nuevoCapitan[0];
-                        io.to(nuevoCapitan[0]).emit('roleAssign', { role: 'capitan', equipo: team });
-                    }
-                }
-
                 actualizarLobbyStatus();
                 io.emit('updateState', gameState);
             }, SESSION_GRACE_MS);
             return;
         }
 
-        const team = playerTeamBySocket.get(socket.id);
         playerTeamBySocket.delete(socket.id);
-        if (socket.id === gameState.capitanes.Wuachiturros) gameState.capitanes.Wuachiturros = null;
-        if (socket.id === gameState.capitanes.Chapisa) gameState.capitanes.Chapisa = null;
-
-        if (team && !gameState.capitanes[team]) {
-            const nuevoCapitan = [...playerTeamBySocket.entries()].find(([, t]) => t === team);
-            if (nuevoCapitan) {
-                gameState.capitanes[team] = nuevoCapitan[0];
-                io.to(nuevoCapitan[0]).emit('roleAssign', { role: 'capitan', equipo: team });
-            }
-        }
 
         actualizarLobbyStatus();
         io.emit('updateState', gameState);

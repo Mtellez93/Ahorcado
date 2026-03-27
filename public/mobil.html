@@ -41,9 +41,9 @@
         </div>
         <div id="timer-mobil" style="display:none;">TIEMPO: <span>40</span>s</div>
 
-        <div id="pantalla-capitan" class="setup-box" style="display:none;">
-            <h3 id="rolTag" style="margin: 5px 0;">CAPITÁN</h3>
-            <p id="instruccionCapitan" style="font-size: 14px;"></p>
+        <div id="pantalla-setup" class="setup-box" style="display:none;">
+            <h3 id="rolTag" style="margin: 5px 0;">ELEGIR PALABRA</h3>
+            <p id="instruccionSetup" style="font-size: 14px;"></p>
             <input type="text" id="palabraInput" placeholder="PALABRA SECRETA">
             <input type="number" id="vidasInput" value="6">
             <button id="btn-iniciar" onclick="enviar()" style="background: #00ff00; color: #000; width: 100%;">ENVIAR PALABRA</button>
@@ -123,8 +123,7 @@
             tag.innerText = "ESTÁS EN: " + miEquipo;
             tag.className = "mi-equipo-tag " + miEquipo;
 
-            if (miRol === 'capitan') document.getElementById('pantalla-capitan').style.display = 'block';
-            else document.getElementById('pantalla-juego').style.display = 'block';
+            document.getElementById('pantalla-juego').style.display = 'block';
         });
 
         function enviar() {
@@ -158,7 +157,7 @@
             if (!miEquipo) return;
 
             if (state.estado === "LOBBY") {
-                document.getElementById('pantalla-capitan').style.display = 'none';
+                document.getElementById('pantalla-setup').style.display = 'none';
                 document.getElementById('pantalla-juego').style.display = 'block';
                 document.getElementById('teclado').style.display = 'none';
                 document.getElementById('infoTurno').innerText = 'Esperando que en TV presionen START GAME...';
@@ -167,7 +166,7 @@
 
 
             if (state.estado === "MATCH_RESULT") {
-                document.getElementById('pantalla-capitan').style.display = 'none';
+                document.getElementById('pantalla-setup').style.display = 'none';
                 document.getElementById('pantalla-juego').style.display = 'block';
                 document.getElementById('teclado').style.display = 'none';
                 document.getElementById('btn-next').style.display = 'none';
@@ -178,22 +177,18 @@
 
             if (state.estado === "SETUP") {
                 document.getElementById('pantalla-juego').style.display = 'none';
-                if(miRol === 'capitan') {
-                    document.getElementById('pantalla-capitan').style.display = 'block';
-                    const miT = (miEquipo === state.equipoQuePonePalabra);
-                    document.getElementById('btn-iniciar').disabled = !miT;
-                    document.getElementById('btn-iniciar').style.opacity = miT ? "1" : "0.3";
-                    document.getElementById('instruccionCapitan').innerText = miT ? "Escribe la palabra para el rival:" : "El rival está eligiendo...";
-                    document.getElementById('palabraInput').value = "";
-                } else {
-                    document.getElementById('pantalla-juego').style.display = 'block';
-                    document.getElementById('infoTurno').innerText = "EL OTRO EQUIPO ESTÁ ELIGIENDO PALABRA...";
-                    document.getElementById('teclado').style.display = "none";
-                }
+                document.getElementById('pantalla-setup').style.display = 'block';
+                const miT = (miEquipo === state.equipoQuePonePalabra);
+                document.getElementById('btn-iniciar').disabled = !miT;
+                document.getElementById('btn-iniciar').style.opacity = miT ? "1" : "0.3";
+                document.getElementById('instruccionSetup').innerText = miT
+                    ? "Tu equipo puede enviar palabra. Se tomará la primera que llegue."
+                    : "El otro equipo está eligiendo palabra...";
+                document.getElementById('palabraInput').value = "";
                 return;
             }
 
-            document.getElementById('pantalla-capitan').style.display = 'none';
+            document.getElementById('pantalla-setup').style.display = 'none';
             document.getElementById('pantalla-juego').style.display = 'block';
             document.getElementById('teclado').style.display = "block";
 
@@ -208,7 +203,7 @@
             } else {
                 info.innerText = "RONDA TERMINADA";
                 info.style.background = "#333";
-                if (miRol === 'capitan') document.getElementById('btn-next').style.display = 'block';
+                document.getElementById('btn-next').style.display = 'block';
             }
 
             if (state.errores > lastErr && esMiT && navigator.vibrate) navigator.vibrate(200);
