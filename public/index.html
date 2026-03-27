@@ -24,7 +24,10 @@
         .timer-low { color: #ff4444; border-color: #ff4444 !important; animation: blink 0.5s infinite; }
         #lobbyPanel { background: rgba(255,255,255,0.08); border: 1px solid #444; border-radius: 16px; padding: 16px 24px; margin-bottom: 20px; max-width: 420px; }
         #qrImage { width: 170px; height: 170px; border-radius: 10px; background: white; padding: 6px; }
-        #btn-start-match { margin-top: 12px; padding: 12px 18px; border: none; border-radius: 10px; background: #2ce779; color: #03160a; font-size: 18px; font-weight: 700; }
+        .lobby-actions { margin-top: 12px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        #btn-start-match, #btn-new-lobby { padding: 12px 18px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; }
+        #btn-start-match { background: #2ce779; color: #03160a; }
+        #btn-new-lobby { background: #5eb8ff; color: #021a35; }
         #btn-start-match:disabled { opacity: 0.35; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
@@ -41,7 +44,10 @@
             <img id="qrImage" alt="QR para lobby" />
             <p style="margin: 8px 0 0; font-size: 14px;">Escanea para abrir <b>mobil.html</b> y escribe el código.</p>
             <p style="margin: 6px 0;">Conectados: W <b id="playersW">0</b> | C <b id="playersC">0</b></p>
-            <button id="btn-start-match" onclick="socket.emit('startMatch')" disabled>START GAME</button>
+            <div class="lobby-actions">
+                <button id="btn-start-match" onclick="socket.emit('startMatch')" disabled>START GAME</button>
+                <button id="btn-new-lobby" onclick="if(confirm('¿Crear nuevo lobby y generar otro QR?')) socket.emit('createNewLobby')">NEW LOBBY + QR</button>
+            </div>
         </div>
 
         <h1 id="status">ESPERANDO JUEGO</h1>

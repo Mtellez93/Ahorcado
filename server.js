@@ -12,7 +12,7 @@ function generarCodigoLobby() {
     return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-const LOBBY_CODE = generarCodigoLobby();
+let currentLobbyCode = generarCodigoLobby();
 
 let gameState = {
     palabra: "",
@@ -27,7 +27,7 @@ let gameState = {
         Chapisa: { rondas: 0, adivinadas: 0 }
     },
     timer: 40,
-    lobbyCode: LOBBY_CODE,
+    lobbyCode: currentLobbyCode,
     playersByTeam: { Wuachiturros: 0, Chapisa: 0 },
     totalPlayers: 0,
     canStartMatch: false,
@@ -56,6 +56,35 @@ function reiniciarPartidaALobby() {
     gameState.timer = 40;
     gameState.matchResultMessage = "";
     actualizarLobbyStatus();
+}
+
+
+function crearNuevoLobby() {
+    stopTimer();
+    currentLobbyCode = generarCodigoLobby();
+    gameState.lobbyCode = currentLobbyCode;
+    gameState.palabra = "";
+    gameState.letrasAdivinadas = [];
+    gameState.vidasTotales = 6;
+    gameState.errores = 0;
+    gameState.turno = "Wuachiturros";
+    gameState.equipoQuePonePalabra = "Chapisa";
+    gameState.estado = "LOBBY";
+    gameState.timer = 40;
+    gameState.matchResultMessage = "";
+
+    playerTeamBySocket.clear();
+    sessionBySocket.clear();
+    for (const session of playerSessions.values()) {
+        if (session.disconnectTimer) clearTimeout(session.disconnectTimer);
+    }
+    playerSessions.clear();
+
+    actualizarLobbyStatus();
+}
+
+function jugadorValido(socket, equipo) {
+    return playerTeamBySocket.get(socket.id) === equipo && sessionBySocket.has(socket.id);
 }
 
 function startTimer() {
@@ -145,6 +174,7 @@ io.on('connection', (socket) => {
 
     socket.on('startGame', (data) => {
         if (gameState.estado !== 'SETUP') return;
+        if (!jugadorValido(socket, data.equipo)) return;
         if (data.equipo !== gameState.equipoQuePonePalabra) return;
         gameState.palabra = data.palabra.toUpperCase();
         gameState.vidasTotales = parseInt(data.vidas, 10);
@@ -158,6 +188,7 @@ io.on('connection', (socket) => {
 
     socket.on('intentarLetra', (data) => {
         if (gameState.estado !== "JUGANDO" || data.equipo !== gameState.turno) return;
+        if (!jugadorValido(socket, data.equipo)) return;
         const letra = data.letra.toUpperCase();
         if (!gameState.letrasAdivinadas.includes(letra)) {
             gameState.letrasAdivinadas.push(letra);
@@ -169,6 +200,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('nextRound', () => {
+        if (!jugadorValido(socket, playerTeamBySocket.get(socket.id))) return;
         stopTimer();
         gameState.puntos[gameState.turno].rondas += 1;
 
@@ -197,6 +229,13 @@ io.on('connection', (socket) => {
         gameState.errores = 0;
         gameState.estado = "SETUP";
         gameState.matchResultMessage = "";
+        io.emit('updateState', gameState);
+    });
+
+
+    socket.on('createNewLobby', () => {
+        crearNuevoLobby();
+        io.emit('lobbyRecreated', { lobbyCode: gameState.lobbyCode });
         io.emit('updateState', gameState);
     });
 
@@ -242,4 +281,4 @@ function validarFinal() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Servidor en puerto ${PORT} | Lobby: ${LOBBY_CODE}`));
+server.listen(PORT, () => console.log(`Servidor en puerto ${PORT} | Lobby: ${currentLobbyCode}`));
